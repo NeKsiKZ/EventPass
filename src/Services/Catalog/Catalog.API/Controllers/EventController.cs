@@ -1,56 +1,50 @@
-﻿using Catalog.API.Entities;
+﻿using Catalog.API.Data;
+using Catalog.API.Entities;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace Catalog.API.Controllers
 {
     [ApiController]
-    [Route("api/v1/[controller]")] // URL: api/v1/event
+    [Route("api/v1/[controller]")]
     public class EventController : ControllerBase
     {
-        private static readonly List<Event> _events = new List<Event>
+        private readonly CatalogDbContext _context;
+
+        public EventController(CatalogDbContext context)
         {
-            new Event
-            {
-                Id = Guid.NewGuid(),
-                Name = "Metallica: World Tour",
-                Date = DateTime.Now.AddMonths(2),
-                Description = "The metal legend returns! An unforgettable show.",
-                Venue = "National Stadium, Warsaw",
-                Price = 350.00m,
-                ImageUrl = "https://placeholder.com/metallica.png"
-            },
-            new Event
-            {
-                Id = Guid.NewGuid(),
-                Name = "Jazz Festival 2025",
-                Date = DateTime.Now.AddMonths(1),
-                Description = "The best jazz musicians in one place.",
-                Venue = "Stodola Club, Warsaw",
-                Price = 80.50m,
-                ImageUrl = "https://placeholder.com/jazz.png"
-            }
-        };
+            _context = context;
+        }
 
         // GET: api/v1/event
         [HttpGet]
-        [ProducesResponseType(typeof(IEnumerable<Event>), 200)]
-        public ActionResult<IEnumerable<Event>> GetEvents()
+        public async Task<ActionResult<IEnumerable<Event>>> GetEvents()
         {
-            return Ok(_events);
+            var events = await _context.Events.ToListAsync();
+            return Ok(events);
         }
 
         // GET: api/v1/event/{id}
         [HttpGet("{id}")]
-        [ProducesResponseType(typeof(Event), 200)]
-        [ProducesResponseType(404)]
-        public ActionResult<Event> GetEventById(Guid id)
+        public async Task<ActionResult<Event>> GetEventById(Guid id)
         {
-            var evt = _events.FirstOrDefault(e => e.Id == id);
+            var evt = await _context.Events.FindAsync(id);
             if (evt == null)
             {
                 return NotFound();
             }
             return Ok(evt);
+        }
+
+        // POST: api/v1/event
+        [HttpPost]
+        public async Task<ActionResult<Event>> CreateEvent(Event eventItem)
+        {
+            _context.Events.Add(eventItem);
+
+            await _context.SaveChangesAsync();
+
+            return CreatedAtAction(nameof(GetEventById), new { id = eventItem.Id }, eventItem);
         }
     }
 }
