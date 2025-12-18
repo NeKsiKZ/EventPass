@@ -1,7 +1,9 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+﻿using MediatR;
+using Microsoft.AspNetCore.Mvc;
+using Ordering.Application.Features.Orders.Commands.CheckoutOrder;
+using Ordering.Application.Features.Orders.Queries.GetOrdersList;
 using Ordering.Domain.Models;
-using Ordering.Infrastructure.Persistence;
+using System.Net;
 
 namespace Ordering.API.Controllers
 {
@@ -9,50 +11,30 @@ namespace Ordering.API.Controllers
     [Route("api/v1/[controller]")]
     public class OrderController : ControllerBase
     {
-        private readonly OrderContext _context;
+        private readonly IMediator _mediator;
 
-        public OrderController(OrderContext context)
+        public OrderController(IMediator mediator)
         {
-            _context = context;
-        }
-
-        // GET: api/v1/Order
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<Order>>> GetOrders()
-        {
-            return Ok(await _context.Orders.ToListAsync());
+            _mediator = mediator;
         }
 
         // POST: api/v1/Order
         [HttpPost]
-        public async Task<ActionResult<Guid>> CheckoutOrder([FromBody] CheckoutRequest request)
+        [ProducesResponseType((int)HttpStatusCode.OK)]
+        public async Task<ActionResult<Guid>> CheckoutOrder([FromBody] CheckoutOrderCommand command)
         {
-            var newOrder = new Order(
-                userId: Guid.NewGuid(),
-                firstName: request.FirstName,
-                lastName: request.LastName,
-                email: request.EmailAddress,
-                address: request.AddressLine,
-                country: request.Country,
-                zipCode: request.ZipCode,
-                totalPrice: request.TotalPrice
-            );
-
-            _context.Orders.Add(newOrder);
-            await _context.SaveChangesAsync();
-
-            return Ok(newOrder.Id);
+            var result = await _mediator.Send(command);
+            return Ok(result);
         }
-    }
 
-    public class CheckoutRequest
-    {
-        public string FirstName { get; set; }
-        public string LastName { get; set; }
-        public string EmailAddress { get; set; }
-        public string AddressLine { get; set; }
-        public string Country { get; set; }
-        public string ZipCode { get; set; }
-        public decimal TotalPrice { get; set; }
+        // GET: api/v1/Order/jan123
+        [HttpGet("{userName}")]
+        [ProducesResponseType(typeof(IEnumerable<Order>), (int)HttpStatusCode.OK)]
+        public async Task<ActionResult<IEnumerable<Order>>> GetOrdersByUserName(string userName)
+        {
+            var query = new GetOrdersListQuery(userName);
+            var orders = await _mediator.Send(query);
+            return Ok(orders);
+        }
     }
 }
